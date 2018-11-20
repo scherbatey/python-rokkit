@@ -10,4 +10,4 @@ include_directories(${PYTHON_INCLUDE_PATH})
 add_library(${PROJECT_NAME} SHARED "rokkit_hash_module.c")
 
 #string(CONCAT EXE_NAME ${PROJECT_NAME} "_test")
-#add_executable(${PROJECT_NAME}_test "rokkit_hash_module.c")
+add_executable(test_${PROJECT_NAME} "test_rokkit_hash.c")

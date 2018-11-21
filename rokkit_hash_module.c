@@ -1,29 +1,49 @@
-#include "rokkit_hash.h"
+#include "SuperFastHash.h"
 
 #include <stdio.h>
 #include <Python.h>
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
-#define ERROR_MSG "Maximal input buffer size (" STR_HELPER(INT_MAX) ") is exceeded"
 
-static_assert(sizeof(long long) > sizeof(int), "Unsupported int and long long sizes");
+#define ERROR_MSG_BIG_BUFFER "Maximal input buffer size (" STR_HELPER(INT_MAX) ") is exceeded"
+#define ERROR_MSG_BIG_SEED "Maximal seed value (" STR_HELPER(UINT_MAX) ") is exceeded"
+#define ERROR_MSG_INVALID_TYPE "Seed value must be of unsigned int32 type"
 
-static PyObject * rokkit_hash_(PyObject * self, PyObject * args) {
+static PyObject * rokkit_hash(PyObject * self, PyObject * args) {
     Py_buffer bytes;
-    if (!PyArg_ParseTuple(args, "y*", &bytes))
+    PyObject * seed_obj = Py_None;
+
+    if (!PyArg_ParseTuple(args, "y* | O", &bytes, &seed_obj))
         return NULL;
     if (bytes.len > INT_MAX) {
-        PyErr_SetString(PyExc_ValueError, ERROR_MSG);
-        return NULL;
+        PyErr_SetString(PyExc_ValueError, ERROR_MSG_BIG_BUFFER);
+        return NULL;    
     }
-    uint32_t result = rokkit_hash(bytes.buf, (int)bytes.len);
+
+    unsigned long seed;
+
+    if (seed_obj == Py_None) {
+        seed = (unsigned long)bytes.len;
+    } else {
+        seed = PyLong_AsUnsignedLong(seed_obj);
+        if (PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, ERROR_MSG_INVALID_TYPE);
+            return NULL;
+        }
+        if (seed > UINT_MAX) {
+            PyErr_SetString(PyExc_ValueError, ERROR_MSG_BIG_SEED);
+            return NULL;
+        }
+    }
+
+    uint32_t result = SuperFastHash(bytes.buf, (int)bytes.len, (uint32_t)seed);
     PyBuffer_Release(&bytes);
-    return PyLong_FromLongLong(result);
+    return PyLong_FromUnsignedLong(result);
 }
 
 static PyMethodDef Methods[] = {
-    {"rokkit_hash",  rokkit_hash_, METH_VARARGS, "Calculates hash of bytes object."},
+    {"rokkit_hash",  rokkit_hash, METH_VARARGS, "Calculates hash of bytes object."},
     {NULL, NULL, 0, NULL} // Sentinel
 };
 
